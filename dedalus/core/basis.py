@@ -1404,7 +1404,6 @@ class PolarBasis(SpinBasis):
 
     dim = 2
     dims = ['azimuth', 'radius']
-    transforms = {}
 
     def __init__(self, coordsystem, shape, k=0, dealias=(1,1), radius_library='matrix', **kw):
         super().__init__(coordsystem, shape, dealias, **kw)
@@ -1421,7 +1420,7 @@ class PolarBasis(SpinBasis):
                                        self.forward_transform_radius]
             self.backward_transforms = [self.backward_transform_azimuth,
                                         self.backward_transform_radius]
-                                        
+
         if self.mmax > 0 and self.Nmax > 0 and shape[0] % 2 != 0:
             raise ValueError("Don't use an odd phi resolution, please")
         if self.mmax > 0 and self.Nmax > 0 and self.dtype == np.float64 and shape[0] % 4 != 0:
@@ -1456,7 +1455,7 @@ class PolarBasis(SpinBasis):
         # this should probably be cleaned up later; needed for m permutation in disk
         self.azimuth_basis = self.S1_basis(radius=None)
 
-    
+
     @CachedMethod
     def S1_basis(self, radius=1):
         if self.dtype == np.complex128:
@@ -1763,6 +1762,7 @@ class PolarBasis(SpinBasis):
 
 class AnnulusBasis(PolarBasis):
 
+    transforms = {}
     subaxis_dependence = (False, True)
 
     def __init__(self, coordsystem, shape, radii=(1,2), k=0, alpha=(-0.5,-0.5), dealias=(1,1), radius_library='matrix', **kw):
@@ -1780,10 +1780,10 @@ class AnnulusBasis(PolarBasis):
         new_shape = (1, self.shape[1])
         dealias = self.dealias
         return AnnulusBasis(self.coordsystem, new_shape, radii=self.radii, k=self.k, alpha=self.alpha, dealias=dealias, radius_library=self.radius_library, dtype=self.dtype, azimuth_library=self.azimuth_library)
-        
+
     def _n_limits(self, m):
         return (0, self.Nmax)
-        
+
     def __add__(self, other):
         if other is None:
             return self
@@ -1806,7 +1806,7 @@ class AnnulusBasis(PolarBasis):
                 shape = tuple(np.maximum(self.shape, other.shape))
                 return AnnulusBasis(self.coordsystem, shape, radii=self.radii, k=0, alpha=self.alpha, dealias=self.dealias, dtype=self.dtype)
         return NotImplemented
-    
+
     def global_grid_radius(self, scale):
         r = self._radius_grid(scale)
         return reshape_vector(r, dim=self.dist.dim, axis=self.axis+1)
@@ -1815,14 +1815,14 @@ class AnnulusBasis(PolarBasis):
         r = self._radius_grid(scale)
         local_elements = self.dist.grid_layout.local_elements(self.domain, scales=scale)[self.axis+1]
         return reshape_vector(r[local_elements], dim=self.dist.dim, axis=self.axis+1)
-    
+
     @CachedMethod
     def _radius_grid(self, scale):
         N = int(np.ceil(scale * self.shape[1]))
         z, weights = dedalus_sphere.jacobi.quadrature(N, self.alpha[0], self.alpha[1])
         r = self.dR/2*(z + self.rho)
         return r.astype(np.float64)
-    
+
     @CachedMethod
     def _radius_weights(self, scale):
         N = int(np.ceil(scale * self.shape[1]))
@@ -1832,8 +1832,8 @@ class AnnulusBasis(PolarBasis):
         Q_proj = dedalus_sphere.jacobi.polynomials(N, self.alpha[0], self.alpha[1], z_proj)
         normalization = self.dR/2
         return normalization * ( (Q0 @ weights0).T ) @ (weights_proj*Q_proj)
-        
-    
+
+
     def global_radius_weights(self, scale=None):
         if scale == None: scale = 1
         N = int(np.ceil(scale * self.shape[1]))
@@ -1851,7 +1851,7 @@ class AnnulusBasis(PolarBasis):
         return AnnulusBasis(self.coordsystem, self.shape, radii = self.radii, k=k, alpha=self.alpha, dealias=self.dealias, dtype=self.dtype,
                          azimuth_library=self.azimuth_library,
                          radius_library=self.radius_library)
-                         
+
     @CachedMethod
     def transform_plan(self, grid_size, k):
         """Build transform plan."""
@@ -1860,12 +1860,12 @@ class AnnulusBasis(PolarBasis):
         a0 = self.alpha[0]
         b0 = self.alpha[1]
         return self.transforms[self.radius_library](grid_size, self.Nmax+1, a, b, a0, b0)
-    
+
     @CachedMethod
     def radial_transform_factor(self, scale, data_axis, dk):
         r = reshape_vector(self._radius_grid(scale), dim=data_axis, axis=data_axis-1)
         return (self.dR/r)**dk
-        
+
     def forward_transform_radius(self, field, axis, gdata, cdata):
         data_axis = len(field.tensorsig) + axis
         grid_size = gdata.shape[data_axis]
@@ -1913,9 +1913,10 @@ class AnnulusBasis(PolarBasis):
         # Multiply by radial factor
         if self.k > 0:
             gdata *= self.radial_transform_factor(field.scales[axis], data_axis, self.k)
-    
+
 class DiskBasis(PolarBasis):
 
+    transforms = {}
     subaxis_dependence = (True, True)
 
     def __init__(self, coordsystem, shape, radius=1, k=0, alpha=0, dealias=(1,1), radius_library='matrix', **kw):
@@ -1928,7 +1929,7 @@ class DiskBasis(PolarBasis):
         if self.mmax > 2*self.Nmax:
             logger.warning("You are using more azimuthal modes than can be resolved with your current radial resolution")
             #raise ValueError("shape[0] cannot be more than twice shape[1].")
-        
+
         self.grid_params = (coordsystem, radius, alpha, dealias)
 
     @CachedAttribute
